@@ -20,6 +20,7 @@ function App() {
   console.log(backendData);
   return (
     <div className="App">
+      backendData
     </div>
   );
 }
