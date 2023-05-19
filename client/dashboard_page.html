@@ -1,0 +1,321 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <title>Bootstrap Example</title>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <link rel="stylesheet" href="https://maxcdn.bootstrapcdn.com/bootstrap/3.4.1/css/bootstrap.min.css">
+    <script src="https://ajax.googleapis.com/ajax/libs/jquery/3.6.3/jquery.min.js"></script>
+    <script src="https://maxcdn.bootstrapcdn.com/bootstrap/3.4.1/js/bootstrap.min.js"></script>
+    <script language="javascript" type="text/javascript">
+
+        function out(msg, color) {
+            var el = document.createElement("pre");
+            if (color) el.style.cssText = "color:" + color + ";";
+            el.innerHTML = msg;
+            document.getElementById("output").appendChild(el);
+            el.scrollIntoView();
+        }
+
+        function connect() {
+            ws = new WebSocket("ws://SERVER_ADDRESS/dashboard/ws");
+            ws.onopen = function (e) {
+                out("<a onclick='connect()'>Connected</a>", "blue");
+            };
+            ws.onclose = function (e) {
+                out("<a onclick='connect()' style='color:red'>Disconnected - Click to"
+                    + " reconnect</a>", "red");
+            };
+            ws.onmessage = function (e) {
+                out(e.data.replace("<", "&lt;").replace(">", "&gt;"));
+            };
+            ws.onerror = function (e) { out("Error " + e.data, "red"); };
+        }
+
+        function cmd_out(msg, color, elementId) {
+            var el = document.getElementById(elementId);
+            if (color) el.style.cssText = "color:" + color + ";";
+            el.innerHTML = msg;
+            el.scrollIntoView();
+        }
+
+        function createElement(results, elementId) {
+            for (let i = 0; i < results.length; i++) {
+                let result = results[i]
+                Object.keys(result).forEach((key) => {
+                    let g = document.createElement('div');
+                    g.className = 'item';
+                    g.innerHTML = result[key];
+                    document.getElementById(elementId).appendChild(g)
+                });
+            }
+        }
+
+        function add_service_data(obj) {
+            const services_keys = Object.keys(obj.services.children)
+            var results = []
+
+            for (let i = 0; i < services_keys.length; i++) {
+                services_key = services_keys[i];
+
+                const service = obj.services.children[services_key].children
+                const timestamp = obj.timestamps.children[services_key].value
+                const dateFormat = new Date(timestamp * 1000).toLocaleString()
+
+                const result = {
+                    service_key: services_key,
+                    timestamp: dateFormat,
+                    service_id: service.service_id.value,
+                    eii_endpoint: service.eii_endpoint.value,
+                    enabled: service.enabled.value,
+                }
+
+                results.push(result)
+            }
+
+            createElement(results, 'service-grid')
+        }
+
+        function execute() {
+            ws = new WebSocket("ws://SERVER_ADDRESS/command/ws");
+            ws.onopen = function (e) {
+                cmd_out("<a onclick='execute()'>Connected</a>", "blue", "service-connection",);
+            };
+            ws.onclose = function (e) {
+                cmd_out("<a onclick='connect()' style='color:red'>Disconnected - Click to"
+                    + " reconnect</a>", "red", "service-connection");
+            };
+            ws.onmessage = function (e) {
+                const obj = JSON.parse(e.data).children;
+                const service_data = add_service_data(obj);
+            };
+            ws.onerror = function (e) { cmd_out("Error " + e.data, "red", "service-connection"); };
+        }
+
+        function execute_config() {
+            ws = new WebSocket("ws://SERVER_ADDRESS/configuration");
+            ws.onopen = function (e) {
+                cmd_out("<a onclick='execute()'>Connected</a>", "blue", "config-connection");
+            };
+            ws.onclose = function (e) {
+                cmd_out("<a onclick='connect()' style='color:red'>Disconnected - Click to"
+                    + " reconnect</a>", "red", "config-connection");
+            };
+            ws.onmessage = function (e) {
+                const obj = JSON.parse(e.data).children;
+                const config_data = add_config_data(obj);
+            };
+            ws.onerror = function (e) { cmd_out("Error " + e.data, "red", "config-connection"); };
+        }
+
+        function execute_pipes() {
+            ws = new WebSocket("ws://SERVER_ADDRESS/pipes");
+            ws.onopen = function (e) {
+                cmd_out("<a onclick='execute()'>Connected</a>", "blue", "pipe-connection");
+            };
+            ws.onclose = function (e) {
+                cmd_out("<a onclick='connect()' style='color:red'>Disconnected - Click to"
+                    + " reconnect</a>", "red", "pipe-connection");
+            };
+            ws.onmessage = function (e) {
+                const obj = JSON.parse(e.data).children;
+                const pipe_data = add_pipe_data(obj);
+            };
+            ws.onerror = function (e) { cmd_out("Error " + e.data, "red", "pipe-connection"); };
+        }
+
+        function add_pipe_data(obj) {
+            const pipe_numbers = Object.keys(obj.pipes.children)
+            var results = []
+
+            for (let i = 0; i < pipe_numbers.length; i++) {
+                pipe_number = pipe_numbers[i];
+
+                const pipe = obj.pipes.children[pipe_number].children
+                const timestamp = obj.pipes.children[pipe_number].value
+                const dateFormat = new Date(timestamp * 1000).toLocaleString()
+
+                const result = {
+                    timestamp: dateFormat,
+                    dom_id: pipe.dom_id.value,
+                    sn_id: pipe.sn_id.value,
+                    local: pipe.local.value,
+                    type: pipe.type.value,
+                    service_data: pipe.service_data.value
+                }
+
+                results.push(result)
+            }
+
+            createElement(results, 'pipes-grid')
+
+            return results
+        }
+
+        function add_config_data(obj) {
+
+            const results = [{
+                dom_id: obj.dom_id.value,
+                sn_id: obj.sn_id.value,
+                launch_time: new Date(obj.launch_time.value * 1000).toLocaleString(),
+                allowed_service_idle: obj.allowed_service_idle.value,
+                allowed_connection_idle: obj.allowed_connection_idle.value,
+                // cp: obj.cp.children
+            }]
+
+            createElement(results, 'config-grid');
+        }
+
+        function send_level() {
+            var el = document.getElementById("level_box");
+            var level = el.options[el.selectedIndex].text;
+            if (level) {
+                console.log("Change level to " + level);
+                ws.send(JSON.stringify({ "": level }));
+                // Use "" as the logger name to get the root logger
+            }
+        }
+
+        window.addEventListener("load", connect, false);
+
+    </script>
+    <style>
+        /* Set height of the grid so .sidenav can be 100% (adjust as needed) */
+        .row.content {
+            height: 100vh
+        }
+
+        /* Set gray background color and 100% height */
+        .sidenav {
+            background-color: #f1f1f1;
+            height: 100%;
+        }
+
+        /* On small screens, set height to 'auto' for the grid */
+        @media screen and (max-width: 767px) {
+            .row.content {
+                height: auto;
+            }
+        }
+
+        .item {
+            background-color: #f5f5f5;
+            border: 1px solid #fff;
+            padding: 5px;
+            font-size: 15px;
+            text-align: center;
+            border-radius: 5px;
+        }
+
+        .header_item {
+            padding: 5px;
+            font-size: 15px;
+            text-align: center;
+            color: white;
+        }
+
+        .grid-container {
+            display: grid;
+            grid-template: 40px / auto auto auto auto auto;
+            grid-gap: 5px;
+            background-color: #999;
+            padding: 10px;
+            border-radius: 5px;
+            margin-top: 10px
+        }
+
+        #pipes-grid {
+            grid-template: 40px / auto auto auto auto auto auto;
+        }
+    </style>
+</head>
+
+<body>
+
+    <nav class="navbar navbar-inverse visible-xs">
+        <div class="container-fluid">
+            <div class="navbar-header">
+                <button type="button" class="navbar-toggle" data-toggle="collapse" data-target="#myNavbar">
+                    <span class="icon-bar"></span>
+                    <span class="icon-bar"></span>
+                    <span class="icon-bar"></span>
+                </button>
+                <a class="navbar-brand" href="#">Logo</a>
+            </div>
+            <div class="collapse navbar-collapse" id="myNavbar">
+                <ul class="nav navbar-nav">
+                    <li class="active"><a href="#">Dashboard</a></li>
+                    <li><a href="#">Age</a></li>
+                    <li><a href="#">Gender</a></li>
+                    <li><a href="#">Geo</a></li>
+                </ul>
+            </div>
+        </div>
+    </nav>
+
+    <div class="container-fluid">
+        <div class="row content">
+            <div class="col-sm-3 sidenav">
+                <h2>EI Monitoring Dashboard</h2>
+                <ul class="nav nav-pills nav-stacked">
+                    <li class="active"><a href="#section1">Dashboard</a></li>
+                    <li><a href="#section2">Section 2 (In progress)</a></li>
+                    <li><a href="#section3">Section 3 (In progress)</a></li>
+                </ul><br>
+            </div>
+            <br>
+
+            <div class="col-sm-9">
+                <div class="well" id="output">
+                    <h4>Console Logs</h4>
+                    <p id="text">Here is the console logs for the running component</p>
+                </div>
+                <div class="well" id="cmd_output">
+                    <h4>Command Logs</h4>
+                    <button type="button" onclick="execute()" data-inline="true">Getting Service Modules Info</button>
+                </div>
+                <div class="well" id="content">
+                    <h4>Command Logs (Please wait for seconds before the result show up)</h4>
+                    <button type="button" onclick="execute()">Getting Service Modules Info</button>
+                    <h4 id="service-connection"></h4>
+                    <div class="grid-container" id="service-grid">
+                        <div class="header_item">Service Key</div>
+                        <div class="header_item">Created Timestamp</div>
+                        <div class="header_item">Service ID</div>
+                        <div class="header_item">Eii Endpoint</div>
+                        <div class="header_item">Enabled</div>
+                    </div>
+                </div>
+                <div class="well" id="content">
+                    <h4>Configuration Info (Please wait for seconds before the result show up)</h4>
+                    <button type="button" onclick="execute_config()">Getting Configuration Info</button>
+                    <h4 id="config-connection"></h4>
+                    <div class="grid-container" id="config-grid">
+                        <div class="header_item">DOM Id</div>
+                        <div class="header_item">SN ID</div>
+                        <div class="header_item">Launch Time</div>
+                        <div class="header_item">Allowed Service Idle</div>
+                        <div class="header_item">Allowed Connection Idle</div>
+                    </div>
+                </div>
+                <div class="well" id="content">
+                    <h4>Pipes (Please wait for seconds before the result show up)</h4>
+                    <button type="button" onclick="execute_pipes()">Getting Pipes Info</button>
+                    <h4 id="pipe-connection"></h4>
+                    <div class="grid-container" id="pipes-grid">
+                        <div class="header_item">Timestamp</div>
+                        <div class="header_item">DOM ID</div>
+                        <div class="header_item">SN ID</div>
+                        <div class="header_item">Local</div>
+                        <div class="header_item">Type</div>
+                        <div class="header_item">Service Data</div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+</body>
+
+</html>
