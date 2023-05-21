@@ -420,12 +420,9 @@ class WebsocketHandler (SplitRequestHandler, object):
     self.log.message("Websocket connection started")
 
   def _on_stop (self):
-    """
-    Called when the Websocket connection is lost
-
-    Override me!
-    """
-    self.log.message("Websocket connection stopped")
+    if self.log_handler:
+      import logging
+      logging.getLogger().removeHandler(self.log_handler)
 
 class CmdWebsocketHandler (WebsocketHandler):
   """
@@ -451,245 +448,75 @@ class CmdWebsocketHandler (WebsocketHandler):
         self.handleError(record)
 
   def _on_message (self, op, msg):
-    import json
-    import logging
-    msg = json.loads(msg)
-    for k,v in msg.items():
-      logging.getLogger(k).setLevel(v)
+    self.send("jjjj")
 
   def _on_start (self):
-    import logging
-    self.log_handler = self.WSLogHandler()
-    self.log_handler.formatter = logging.Formatter("%(levelname)s | %(name)s"
-                                                   " | %(message)s")
-    self.log_handler.web_handler = self
-    logging.getLogger().addHandler(self.log_handler)
+
+    from subprocess import run
 
     sample_cmd = "ext/ei/scripts/ctl.sh 1 1 show_tree=servicemodules --format=json"
-    p = subprocess.getoutput(sample_cmd)
-
-    log.info(p)
-
-  def _on_stop (self):
-    if self.log_handler:
-      import logging
-      logging.getLogger().removeHandler(self.log_handler)
+    data = run(sample_cmd, capture_output=True, shell=True)
+    output1 = data.stdout.decode('utf-8').split('\n')[1]
+    self.send(output1)
 
 
-_log_page = """
-<!DOCTYPE html>
-<html>
-<head>
-<title>POX Log</title>
-<script language="javascript" type="text/javascript">
-
-function out (msg, color)
-{
-  var el = document.createElement("pre");
-  if (color) el.style.cssText = "color:" + color + ";";
-  el.innerHTML = msg;
-  document.getElementById("output").appendChild(el);
-  el.scrollIntoView();
-}
-
-function connect ()
-{
-  ws = new WebSocket("ws://SERVER_ADDRESS/dashboard/ws");
-  ws.onopen = function(e) { 
-      out("<a onclick='connect()'>Connected</a>", "blue");
-  };
-  ws.onclose = function(e) {
-    out("<a onclick='connect()' style='color:red'>Disconnected - Click to"
-        + " reconnect</a>", "red");
-  };
-  ws.onmessage = function(e) {
-    out(e.data.replace("<","&lt;").replace(">","&gt;"));
-  };
-  ws.onerror = function(e) { out("Error " + e.data, "red"); };
-}
-
-function send_level ()
-{
-  var el = document.getElementById("level_box");
-  var level = el.options[el.selectedIndex].text;
-  if (level)
-  {
-    console.log("Change level to " + level);
-    ws.send(JSON.stringify({"": level}));
-    // Use "" as the logger name to get the root logger
-  }
-}
-
-window.addEventListener("load", connect, false);
-
-</script>
-</head>
-<body>
-<h1><a href="help.txt">EI Monitoring Dashboard</a></h1>
-Root Log Level: <select id="level_box" onchange="send_level()">
-  <option></option>
-  <option>ERROR</option>
-  <option>WARNING</option>
-  <option>INFO</option>
-  <option>DEBUG</option>
-</select>
-<div id="output"></div>
-</body>
-</html>
-"""
-
-page = """
-<!DOCTYPE html>
-<html lang="en">
-<head>
-  <title>Bootstrap Example</title>
-  <meta charset="utf-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1">
-  <link rel="stylesheet" href="https://maxcdn.bootstrapcdn.com/bootstrap/3.4.1/css/bootstrap.min.css">
-  <script src="https://ajax.googleapis.com/ajax/libs/jquery/3.6.3/jquery.min.js"></script>
-  <script src="https://maxcdn.bootstrapcdn.com/bootstrap/3.4.1/js/bootstrap.min.js"></script>
-  <script language="javascript" type="text/javascript">
-
-function out (msg, color)
-{
-  var el = document.createElement("pre");
-  if (color) el.style.cssText = "color:" + color + ";";
-  el.innerHTML = msg;
-  document.getElementById("output").appendChild(el);
-  el.scrollIntoView();
-}
-
-function connect ()
-{
-  ws = new WebSocket("ws://SERVER_ADDRESS/dashboard/ws");
-  ws.onopen = function(e) { 
-      out("<a onclick='connect()'>Connected</a>", "blue");
-  };
-  ws.onclose = function(e) {
-    out("<a onclick='connect()' style='color:red'>Disconnected - Click to"
-        + " reconnect</a>", "red");
-  };
-  ws.onmessage = function(e) {
-    out(e.data.replace("<","&lt;").replace(">","&gt;"));
-  };
-  ws.onerror = function(e) { out("Error " + e.data, "red"); };
-}
-
-function cmd_out (msg, color)
-{
-  var el = document.createElement("cmd_out");
-  if (color) el.style.cssText = "color:" + color + ";";
-  el.innerHTML = msg;
-  document.getElementById("cmd_output").appendChild(el);
-  el.scrollIntoView();
-}
-
-function execute ()
-{
-  ws = new WebSocket("ws://SERVER_ADDRESS/command/ws");
-  ws.onopen = function(e) { 
-  };
-  ws.onclose = function(e) {
-  };
-  ws.onmessage = function(e) {
-    console.log(e)
-  };
-  ws.onerror = function(e) { out("Error " + e.data, "red"); };
-}
-
-function send_level ()
-{
-  var el = document.getElementById("level_box");
-  var level = el.options[el.selectedIndex].text;
-  if (level)
-  {
-    console.log("Change level to " + level);
-    ws.send(JSON.stringify({"": level}));
-    // Use "" as the logger name to get the root logger
-  }
-}
-
-window.addEventListener("load", connect, false);
-
-</script>
-  <style>
-    /* Set height of the grid so .sidenav can be 100% (adjust as needed) */
-    .row.content {height: 550px}
+class ConfigWebSocketHandler (WebsocketHandler):
     
-    /* Set gray background color and 100% height */
-    .sidenav {
-      background-color: #f1f1f1;
-      height: 100%;
-    }
-        
-    /* On small screens, set height to 'auto' for the grid */
-    @media screen and (max-width: 767px) {
-      .row.content {height: auto;} 
-    }
-  </style>
-</head>
-<body>
+  log_handler = None
 
-<nav class="navbar navbar-inverse visible-xs">
-  <div class="container-fluid">
-    <div class="navbar-header">
-      <button type="button" class="navbar-toggle" data-toggle="collapse" data-target="#myNavbar">
-        <span class="icon-bar"></span>
-        <span class="icon-bar"></span>
-        <span class="icon-bar"></span>                        
-      </button>
-      <a class="navbar-brand" href="#">Logo</a>
-    </div>
-    <div class="collapse navbar-collapse" id="myNavbar">
-      <ul class="nav navbar-nav">
-        <li class="active"><a href="#">Dashboard</a></li>
-        <li><a href="#">Age</a></li>
-        <li><a href="#">Gender</a></li>
-        <li><a href="#">Geo</a></li>
-      </ul>
-    </div>
-  </div>
-</nav>
+  import logging
+  class WSLogHandler (logging.Handler):
+    web_handler = None # Set externally
+    def emit (self, record):
+      try:
+        msg = self.format(record)
+        self.web_handler.send(msg + "\n")
+      except (KeyboardInterrupt, SystemExit):
+        raise
+      except:
+        self.handleError(record)    
 
-<div class="container-fluid">
-  <div class="row content">
-    <div class="col-sm-3 sidenav">
-      <h2>EI Monitoring Dashboard</h2>
-      <ul class="nav nav-pills nav-stacked">
-        <li class="active"><a href="#section1">Dashboard</a></li>
-        <li><a href="#section2">Section 2</a></li>
-        <li><a href="#section3">Section 3</a></li>
-      </ul><br>
-    </div>
-    <br>
+  def _on_message (self, op, msg):
+    self.send("jjjj")
+
+  def _on_start (self):
+
+    from subprocess import run
+
+    sample_cmd = "ext/ei/scripts/ctl.sh 1 1 show_tree=config --format=json"
+    data = run(sample_cmd, capture_output=True, shell=True)
+    output = data.stdout.decode('utf-8').split('\n')[1]
+    self.send(output)
     
-    <div class="col-sm-9">
-      <div class="well" id="output">
-        <h4>Dashboard</h4>
-        <p id="text">Here is the console logs for the running component</p>
-      </div>
-      <div class="well" id="cmd_output">
-        <h4>Command Logs</h4>
-        <button type="button" onclick="execute()">Getting Service Modules Info</button>
-      </div>
-      <div class="well" id="cmd_output">
-        <h4>Command Logs</h4>
-        <button type="button" onclick="execute()">Getting Service Pipes Info</button>
-      </div>      
-      <div class="row">
-        <div class="col-sm-9">
-          <div class="well">
-            <h4>Console Logs</h4>
-          </div>
-        </div>
-      </div>
-    </div>
-  </div>
-</div>
 
-</body>
-</html>
-"""
+class PipesWebSocketHandler (WebsocketHandler):
+  
+  log_handler = None
+
+  import logging
+  class WSLogHandler (logging.Handler):
+    web_handler = None # Set externally
+    def emit (self, record):
+      try:
+        msg = self.format(record)
+        self.web_handler.send(msg + "\n")
+      except (KeyboardInterrupt, SystemExit):
+        raise
+      except:
+        self.handleError(record)
+
+  def _on_message (self, op, msg):
+    self.send("jjjj")
+
+  def _on_start (self):
+
+    from subprocess import run
+
+    sample_cmd = "ext/ei/scripts/ctl.sh 1 1 show_tree=pipes --format=json"
+    data = run(sample_cmd, capture_output=True, shell=True)
+    output = data.stdout.decode('utf-8').split('\n')[1]
+    self.send(output)
+    
 
 _log_help_page = """
 Connecting to the base page should result in log messages being sent to the
@@ -716,22 +543,17 @@ def launch ():
   from dashboard.handlers  import LogWebsocketHandler 
   def ready ():
     addr = list(core.WebServer.socket.getsockname())
-    print(addr)
-    print(tuple(addr))
-    # for simple commands
-    # cmd_str = "ext/ei/scripts/ctl.sh 1 1 show_tree=servicemodules --format=json"
-    # r = subprocess.run(cmd_str, shell=True)
-    # sample = "ext/ei/scripts/ctl.sh 1 1 show_tree=servicemodules"
-    # # p = subprocess.run(["ext/ei/scripts/ctl.sh", "1", "1", "show_tree=servicemodules"], capture_output=True, text=True)
-    # p = subprocess.getoutput(sample)
-    # print(p)
+    with open('ext/ei-dashboard/client/dashboard_page.html', 'r') as file:
+      html_string = file.read()
     if addr[0] == "0.0.0.0": addr[0] = "35.247.87.94"
-    docs = {'/': page.replace("SERVER_ADDRESS", "%s:%s" % tuple(addr)),
+    docs = {'/': html_string.replace("SERVER_ADDRESS", "%s:%s" % tuple(addr)),
             '/help.txt':_log_help_page}
 
     core.WebServer.set_handler("/dashboard/ws", LogWebsocketHandler)
     core.WebServer.set_handler("/dashboard", InternalContentHandler, docs)
     core.WebServer.set_handler("/command/ws", CmdWebsocketHandler)
+    core.WebServer.set_handler("/configuration", ConfigWebSocketHandler)
+    core.WebServer.set_handler("/pipes", PipesWebSocketHandler)
   core.call_when_ready(ready, ("WebServer",), "log_websocket")
 
 

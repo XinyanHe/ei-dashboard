@@ -128,6 +128,7 @@
         function add_pipe_data(obj) {
             const pipe_numbers = Object.keys(obj.pipes.children)
             var results = []
+            var config_results = []
 
             for (let i = 0; i < pipe_numbers.length; i++) {
                 pipe_number = pipe_numbers[i];
@@ -135,8 +136,11 @@
                 const pipe = obj.pipes.children[pipe_number].children
                 const timestamp = obj.pipes.children[pipe_number].value
                 const dateFormat = new Date(timestamp * 1000).toLocaleString()
+                const config = pipe.config.children
+                console.log(config)
 
                 const result = {
+                    pipe_number: pipe_number,
                     timestamp: dateFormat,
                     dom_id: pipe.dom_id.value,
                     sn_id: pipe.sn_id.value,
@@ -146,9 +150,22 @@
                 }
 
                 results.push(result)
+
+                if (config != undefined) {
+                    const config_result = {
+                        pipe_number: pipe_number,
+                        local_addr: config.local_addr.value,
+                        local_port: config.local_port.value,
+                        remote_addr: config.remote_addr.value,
+                        remote_id: config.remote_id.value,
+                        remote_port: config.remote_port.value
+                    }
+                    config_results.push(config_result)
+                }
             }
 
             createElement(results, 'pipes-grid')
+            createElement(config_results, 'pipes-config-grid')
 
             return results
         }
@@ -226,6 +243,10 @@
         }
 
         #pipes-grid {
+            grid-template: 40px / auto auto auto auto auto auto auto;
+        }
+
+        #pipes-config-grid {
             grid-template: 40px / auto auto auto auto auto auto;
         }
     </style>
@@ -271,10 +292,10 @@
                     <h4>Console Logs</h4>
                     <p id="text">Here is the console logs for the running component</p>
                 </div>
-                <div class="well" id="cmd_output">
+                <!-- <div class="well" id="cmd_output">
                     <h4>Command Logs</h4>
                     <button type="button" onclick="execute()" data-inline="true">Getting Service Modules Info</button>
-                </div>
+                </div> -->
                 <div class="well" id="content">
                     <h4>Command Logs (Please wait for seconds before the result show up)</h4>
                     <button type="button" onclick="execute()">Getting Service Modules Info</button>
@@ -304,12 +325,21 @@
                     <button type="button" onclick="execute_pipes()">Getting Pipes Info</button>
                     <h4 id="pipe-connection"></h4>
                     <div class="grid-container" id="pipes-grid">
+                        <div class="header_item">Pipe Number</div>
                         <div class="header_item">Timestamp</div>
                         <div class="header_item">DOM ID</div>
                         <div class="header_item">SN ID</div>
                         <div class="header_item">Local</div>
                         <div class="header_item">Type</div>
                         <div class="header_item">Service Data</div>
+                    </div>
+                    <div class="grid-container" id="pipes-config-grid">
+                        <div class="header_item">Pipe Number</div>
+                        <div class="header_item">Local Addr</div>
+                        <div class="header_item">Local Port</div>
+                        <div class="header_item">Remote Addr</div>
+                        <div class="header_item">Remote ID</div>
+                        <div class="header_item">Remote Port</div>
                     </div>
                 </div>
             </div>
